@@ -16,7 +16,7 @@
 
     - name: Clone repository
       git:
-        repo: 'https://github.com/xNer0/semui.co.git'
+        repo: 'https:/github.com/xNer0/semui.co.git'
         dest: /var/www/semui.co
 
     - name: Install Python requirements
