@@ -1,0 +1,33 @@
+---
+- name: Installation et configuration d'Apache2
+  hosts: all
+  become: true
+  vars_files:
+    - "env_vars/apache.yml"
+
+  tasks:
+    - name: Installation d'Apache2
+      ansible.builtin.apt:
+        name: apache2
+        state: present
+
+    - name: Copie du fichier de configuration Apache2
+      ansible.builtin.template:
+        src: templates/apache2.conf.j2
+        dest: /etc/apache2/apache2.conf
+        mode: "0644"
+      notify: Restart Apache
+
+
+    - name: Copie index.html
+      ansible.builtin.template:
+        src: templates/index.html.j2
+        dest: "{{ directory }}/index.html"
+        mode: "0644"
+
+
+  handlers:
+    - name: Restart Apache
+      ansible.builtin.service:
+        name: apache2
+        state: restarted
