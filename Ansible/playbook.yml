@@ -1,0 +1,16 @@
+- name: Installer Semaphore sur une instance GCP
+  hosts: all
+  become: yes
+  tasks:
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+
+    - name: Install snap
+      apt:
+        name: snapd
+        state: present
+
+
+    - name: Install Semaphore
+      command: sudo snap install semaphore
