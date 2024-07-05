@@ -1,29 +1,114 @@
-- name: Deploy application
-  hosts: all
+---
+- name: Configuration de l'application FastAPI localement
+  hosts: localhost
   become: yes
+
   vars:
-    app_user: ryan_user
-    app_dir: /opt/myapp
-    virtualenv_dir: /opt/myapp/venv
-    repo_url: https://gist.github.com/thibaultserti/21456f4797100376f67443920e5d5145/archive/main.zip
+    app_user: fastapi_ryan
+    app_dir: /home/fastapi_ryan/app
+    venv_dir: /home/fastapi_ryan/venv
+    requirements_file: /home/fastapi_user/app/requirements.txt
+    service_name: fastapi_app
+    apache_conf_path: /etc/apache2/sites-available/fastapi_app.conf
+    local_app_dir: app/
 
   tasks:
-    - name: Install Python et Unzip
+    - name: S'assurer que Python et les dépendances sont installés
       apt:
-        name: "{{ item }}"
+        name:
+          - python3
+          - python3-venv
+          - python3-pip
+          - apache2
         state: present
-      loop:
-        - python3
-        - python3-venv
-        - unzip
+        update_cache: yes
 
-    - name: Download Github Code
-      get_url:
-        url: "{{ repo_url }}"
-        dest: /tmp/myapp.zip
-
-    - name: Creation User
+    - name: Créer un utilisateur dédié pour l'application FastAPI
       user:
         name: "{{ app_user }}"
+        home: "/home/{{ app_user }}"
         shell: /bin/bash
         create_home: yes
+
+    - name: Créer le répertoire de l'application
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+
+    - name: Copier les fichiers de l'application
+      copy:
+        src: "{{ local_app_dir }}/"
+        dest: "{{ app_dir }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Vérifier si l'environnement virtuel existe déjà
+      stat:
+        path: "{{ venv_dir }}/bin/activate"
+      register: venv_exists
+
+    - name: Créer un environnement virtuel si nécessaire
+      command: python3 -m venv "{{ venv_dir }}"
+      become_user: "{{ app_user }}"
+      when: not venv_exists.stat.exists
+
+    - name: Installer les dépendances Python
+      pip:
+        requirements: "{{ requirements_file }}"
+        virtualenv: "{{ venv_dir }}"
+        virtualenv_command: python3 -m venv
+      become_user: "{{ app_user }}"
+
+    - name: Créer un service systemd pour FastAPI
+      copy:
+        dest: /etc/systemd/system/{{ service_name }}.service
+        content: |
+          [Unit]
+          Description=Application FastAPI
+          After=network.target
+
+          [Service]
+          User={{ app_user }}
+          Group={{ app_user }}
+          WorkingDirectory={{ app_dir }}
+          ExecStart={{ venv_dir }}/bin/uvicorn main:app --host 127.0.0.1 --port 8000
+          Restart=always
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Recharger systemd pour appliquer le nouveau service
+      systemd:
+        daemon_reload: yes
+
+    - name: Activer et démarrer le service FastAPI
+      systemd:
+        name: "{{ service_name }}"
+        enabled: yes
+        state: started
+
+    - name: Configurer Apache comme reverse proxy pour FastAPI
+      copy:
+        dest: "{{ apache_conf_path }}"
+        content: |
+          <VirtualHost *:80>
+              ServerName localhost
+
+              ProxyPass / http://127.0.0.1:8000/
+              ProxyPassReverse / http://127.0.0.1:8000/
+
+              ErrorLog ${APACHE_LOG_DIR}/error.log
+              CustomLog ${APACHE_LOG_DIR}/access.log combined
+          </VirtualHost>
+
+    - name: Activer la configuration du site Apache
+      command: a2ensite fastapi_app.conf
+
+    - name: Recharger Apache
+      systemd:
+        name: apache2
+        state: reloaded
+

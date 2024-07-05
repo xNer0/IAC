@@ -1,10 +1,12 @@
-<<<<<<< HEAD
-a# EfficomInfraAsCode2
-=======
-Avec Terraform j'ai réussi a déployer ma VM sur GCP via les bonnes conf dans les fichiers .tf
+Création de l'inventaire Ansible à destination de la machine locale : TP_Partiel/Ansible/inventories => inventory.ini
 
-Avec Ansible j'ai pu déployer avec succès également sémaphore, j'ai oublié d'ouvrir le port 3000 dans la conf TF,
-je ne voulais pas détruire le projet pour le reconstruire par la suite juste pour ouvrir le port 3000 donc je l'ai fait à la main
-J'ai bien eu accès à ma console sémaphore avec l'ip publique de ma VM gcp et le port 3000.
+Exécutez le playbook Ansible : ansible-playbook -i inventories/inventory.ini fastapi.yml    
 
->>>>>>> 62e32b16583580c86bf20a7aef03535c7ea8eb69
+- Installation des dépendances : Python, virtualenv, Apache et les modules nécessaires
+- Création d'un utilisateur dédié : Un utilisateur nommé `fastapi_ryan` doit etre créé  sur la machine pour exécuter l'application.
+- Configuration de l'application : L'application est copiée dans le répertoire utilisateur sur la machine locale et les dépendances sont installées dans un environnement virtuel.
+- Création du service systemd pour que l'api se lance même au démarrage de la machine
+- Configuration Apache : Apache est configuré comme reverse proxy pour Uvicorn, servant l'application FastAPI sur la machine distante.
+
+Après l'installation, accès de l'appli sur IP locale de la machine 127.0.0.1:8000 et pour les docs : 127.0.0.1:8000/docs
+
